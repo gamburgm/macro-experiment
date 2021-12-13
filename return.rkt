@@ -1,23 +1,20 @@
 #lang racket
 
-(require syntax/parse)
+(require (for-syntax racket/base syntax/parse))
 
-(define-syntax (change-return stx)
-  (syntax-parse stx
-    [(e (~parse (a . d) #'e) k)
-     #'((change-return a k) . (change-return d k))]
-    [((~datum return) . k) #'k]
-    [(s . k) #'s]))
 
 (define-syntax (define/return stx)
-  (syntax-parse stx
-    [(_ (fn-name:id params:id ...) body ...+)
+  (syntax-parse stx #:datum-literals (return)
+    [(_ (fn-name:id params:id ...) body ... expr:expr)
      (with-syntax ([(cont-func k) (generate-temporaries '(cont-func k))])
-       #'(define (fn-name params ...)
+       (define x #'(define (fn-name params ...)
            (define (cont-func k)
-             (change-return (let () body ...) k))
+             (define-syntax return (make-rename-transformer #'k))
+             (let () body ... expr))
 
-           (call/cc cont-func)))]))
+           (call/cc cont-func)))
+     (displayln x)
+                x)]))
 
 (define/return (foobar x)
   (when (= x 5)
